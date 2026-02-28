@@ -129,7 +129,8 @@ persistencelib = {}
 -- Helper to resolve internal data storage (Handles both Proxy and Bridged Entity)
 -- This ensures we can access internal state (wield_index, etc.) even after bridging.
 local function get_internal_data(player)
-    if not player then return nil end
+	assert(player)
+--    if not player then return nil end
     -- Direct access if it's the fakelib proxy
     if player.data then return player.data end
     -- Access via the bridge if it's the LuaEntity table
@@ -141,10 +142,11 @@ end
 
 -- Helper to serialize inventory lists including layout metadata
 local function serialize_inventory(inv)
-    if not inv then
-        minetest.log("[persistencelib] serialize_inventory: inv is nil")
-        return {}
-    end
+	assert(inv)
+--    if not inv then
+--        minetest.log("[persistencelib] serialize_inventory: inv is nil")
+--        return {}
+--    end
 
     local inv_data = {}
     local lists = inv:get_lists()
@@ -172,17 +174,19 @@ end
 -- Serializes a fakelib player's full state
 -- Includes identity, physical state, inventory, metadata, and visual properties.
 function persistencelib.get_state(fake_player)
+	minetest.log('persistencelib.get_state() name: '..fake_player:get_player_name())
     -- CHANGE: Hardened assertions and added lifecycle logging
     assert(fake_player ~= nil, "[persistencelib] Cannot get state of nil player")
     assert(fake_player.get_player_name ~= nil, "[persistencelib] Object is not a valid player proxy")
 
     local name = fake_player:get_player_name()
-    minetest.log("[persistencelib] get_state: Gathering state for: %s", name)
+    minetest.log("[persistencelib] get_state: Gathering state for: "..name)
 
     local internal = get_internal_data(fake_player)
-    if not internal then
-        minetest.log("[persistencelib] get_state: No internal data found for: %s", name)
-    end
+    assert(internal)
+--    if not internal then
+--        minetest.log("[persistencelib] get_state: No internal data found for: %s", name)
+--    end
 
     local state = {
         -- Identity & Physics
@@ -211,30 +215,33 @@ function persistencelib.get_state(fake_player)
 
     -- Validation: Ensure the table is serializable (no hidden userdata/functions)
     local test_ser = minetest.serialize(state)
-    if not test_ser then
-        minetest.log("[persistencelib] get_state: FAILED to serialize state for %s!", name)
-    else
-        minetest.log("[persistencelib] get_state: Captured %d bytes for %s", #test_ser, name)
-    end
+    assert(test_ser)
+--    if not test_ser then
+--        minetest.log("[persistencelib] get_state: FAILED to serialize state for %s!", name)
+--    else
+--        minetest.log("[persistencelib] get_state: Captured %d bytes for %s", #test_ser, name)
+--    end
 
     return state
 end
 
 -- Restores state into a fakelib player object
 function persistencelib.apply_state(fake_player, state_data)
-	minetest.log('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+	minetest.log('persistencelib.apply_state() name: '..fake_player:get_player_name())
     -- CHANGE: Added defensive checks and application logging
-    if not fake_player then
-        minetest.log("[persistencelib] apply_state: fake_player is nil")
-        return
-    end
-    if not state_data then
-        minetest.log("[persistencelib] apply_state: state_data is nil")
-        return
-    end
+    assert(fake_player)
+--    if not fake_player then
+--        minetest.log("[persistencelib] apply_state: fake_player is nil")
+--        return
+--    end
+    assert(state_data)
+--    if not state_data then
+--        minetest.log("[persistencelib] apply_state: state_data is nil")
+--        return
+--    end
 
-    local name = fake_player:get_player_name() or "unknown"
-    minetest.log("[persistencelib] apply_state: Restoring state for: %s", name)
+    local name = fake_player:get_player_name() -- or "unknown" -- NOTE or "unknown" will cause crashes that cannot be recovered from: a new world will be required
+    minetest.log("[persistencelib] apply_state: Restoring state for: "..name)
 
     -- 1. Restore Metadata (Priority: Attributes might modify behaviors)
     if state_data.meta then
@@ -270,8 +277,8 @@ function persistencelib.apply_state(fake_player, state_data)
     -- 5. Restore Visual Properties
     if state_data.properties and next(state_data.properties) then
         fake_player:set_properties(state_data.properties)
-        minetest.log("[persistencelib] apply_state: Visual properties applied for: %s", name)
+        minetest.log("[persistencelib] apply_state: Visual properties applied for: "..name)
     end
 
-    minetest.log("[persistencelib] apply_state: Complete for: %s", name)
+    minetest.log("[persistencelib] apply_state: Complete for: "..name)
 end
